@@ -69,6 +69,8 @@ export default function SignUp() {
 
     setLoading(true);
     setErrors({});
+    console.log('Kayıt formu:', form);
+    console.log('full_name backend\'e böyle gidiyor:', form.name);
 
     try {
       const response = await fetch(`${API_URL}${API_ENDPOINTS.REGISTER}`, {
@@ -77,7 +79,7 @@ export default function SignUp() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: form.name,
+          full_name: form.name,
           email: form.email,
           password: form.password,
         }),
@@ -102,7 +104,7 @@ export default function SignUp() {
       <View style={styles.container}>
         <View style={styles.header}>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => router.replace('/auth/signin')}
             style={styles.headerBack}>
             <FeatherIcon
               color="#1D2A32"

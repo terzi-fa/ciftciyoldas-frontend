@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { API_URL, API_ENDPOINTS } from '../config/api';
+import { apiGet, apiPost } from '../services/api';
 
 interface ForumMessage {
   id: number;
@@ -34,44 +35,30 @@ export default function CommunityChat() {
   }, []);
 
   const fetchMessages = async () => {
-    try {
-      const response = await fetch(`${API_URL}${API_ENDPOINTS.FORUM_MESSAGES}`);
-      if (!response.ok) {
-        throw new Error('Mesajlar yüklenirken bir hata oluştu');
-      }
-      const data = await response.json();
-      setMessages(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bir hata oluştu');
-    } finally {
+    const { data, error } = await apiGet(API_ENDPOINTS.FORUM_MESSAGES);
+    if (error) {
+      setError(error);
+      console.log('API Hatası:', error);
       setLoading(false);
+      return;
     }
+    setMessages(data);
+    setLoading(false);
   };
 
   const sendMessage = async () => {
     if (inputText.trim().length === 0) return;
 
-    try {
-      const response = await fetch(`${API_URL}${API_ENDPOINTS.FORUM_MESSAGES}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          content: inputText.trim(),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Mesaj gönderilirken bir hata oluştu');
-      }
-
-      const sentMessage = await response.json();
-      setMessages(prev => [sentMessage, ...prev]);
-      setInputText('');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bir hata oluştu');
+    const { data, error } = await apiPost(API_ENDPOINTS.FORUM_MESSAGES, {
+      content: inputText.trim(),
+    });
+    if (error) {
+      setError(error);
+      console.log('API Hatası:', error);
+      return;
     }
+    setMessages(prev => [data, ...prev]);
+    setInputText('');
   };
 
   if (loading) {

@@ -19,11 +19,6 @@ interface News {
   title: string;
   content: string;
   imageUrl: string;
-  author: {
-    id: number;
-    name: string;
-    avatarUrl: string;
-  };
   category: string;
   createdAt: string;
 }
@@ -109,12 +104,7 @@ export default function NewsFeed() {
                 <Text style={styles.cardTitle}>{item.title}</Text>
                 <View style={styles.cardRow}>
                   <View style={styles.cardRowItem}>
-                    <Image
-                      alt=""
-                      source={{ uri: item.author.avatarUrl }}
-                      style={styles.cardRowItemImg}
-                    />
-                    <Text style={styles.cardRowItemText}>{item.author.name}</Text>
+                    {/* Avatar ve yazar adı kaldırıldı */}
                   </View>
                   <Text style={styles.cardRowDivider}>·</Text>
                   <View style={styles.cardRowItem}>
@@ -238,12 +228,6 @@ const styles = StyleSheet.create({
   cardRowItem: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  cardRowItemImg: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    marginRight: 8,
   },
   cardRowItemText: {
     fontSize: 13,

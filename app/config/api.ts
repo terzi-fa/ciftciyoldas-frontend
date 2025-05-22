@@ -1,5 +1,5 @@
 // API URL'leri
-const DEV_API_URL = 'http://localhost:3000';
+const DEV_API_URL = 'http://192.168.1.149:3000';
 const PROD_API_URL = 'https://backend-ciftciyoldas.onrender.com'; // Render.com'da oluşturacağın URL
 
 // Geliştirme ortamında mı yoksa prodüksiyon ortamında mı olduğumuzu kontrol et

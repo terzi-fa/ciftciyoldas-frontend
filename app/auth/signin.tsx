@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { API_URL, API_ENDPOINTS } from '../config/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SignIn() {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -69,7 +70,13 @@ export default function SignIn() {
       const data = await response.json();
       
       // Token'ı localStorage'a kaydet
-      localStorage.setItem('token', data.token);
+      await AsyncStorage.setItem('token', data.access_token);
+      if (!data.access_token) {
+        Alert.alert('Hata', 'Giriş başarısız! Sunucudan token alınamadı.');
+        setLoading(false);
+        return;
+      }
+      await AsyncStorage.setItem('token', data.access_token);
       
       Alert.alert('Başarılı', 'Giriş başarılı!');
       router.replace('/newsfeed');

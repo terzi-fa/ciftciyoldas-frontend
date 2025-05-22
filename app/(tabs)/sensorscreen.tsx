@@ -11,6 +11,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { API_URL, API_ENDPOINTS } from '../config/api';
+import { apiGet, apiPost } from '../services/api';
 
 interface Sensor {
   id: number;
@@ -34,45 +35,31 @@ export default function SensorScreen() {
   }, []);
 
   const fetchSensors = async () => {
-    try {
-      const response = await fetch(`${API_URL}${API_ENDPOINTS.SENSORS}`);
-      if (!response.ok) {
-        throw new Error('Sensör verileri yüklenirken bir hata oluştu');
-      }
-      const data = await response.json();
-      setSensors(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bir hata oluştu');
-    } finally {
+    const { data, error } = await apiGet(API_ENDPOINTS.SENSORS);
+    if (error) {
+      setError(error);
+      console.log('API Hatası:', error);
       setLoading(false);
+      return;
     }
+    setSensors(Array.isArray(data) ? data : []);
+    setLoading(false);
   };
 
   const addSensor = async () => {
     if (sensorId.trim() === '') return;
 
-    try {
-      const response = await fetch(`${API_URL}${API_ENDPOINTS.SENSORS}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: sensorId.trim(),
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Sensör eklenirken bir hata oluştu');
-      }
-
-      const newSensor = await response.json();
-      setSensors(prev => [...prev, newSensor]);
-      setSensorId('');
-      setShowInput(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bir hata oluştu');
+    const { data, error } = await apiPost(API_ENDPOINTS.SENSORS, {
+      id: sensorId.trim(),
+    });
+    if (error) {
+      setError(error);
+      console.log('API Hatası:', error);
+      return;
     }
+    setSensors(prev => [...prev, data]);
+    setSensorId('');
+    setShowInput(false);
   };
 
   if (loading) {
