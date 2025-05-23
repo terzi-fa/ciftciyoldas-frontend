@@ -44,7 +44,7 @@ export default function EkinSearchScreen() {
         throw new Error('Ekin türleri yüklenirken bir hata oluştu');
       }
       const data = await response.json();
-      setCropTypes(data);
+      setCropTypes(data.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Bir hata oluştu');
     } finally {

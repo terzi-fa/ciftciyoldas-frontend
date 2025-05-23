@@ -18,12 +18,22 @@ async function getAuthHeader(): Promise<{ [key: string]: string }> {
 export async function apiGet<T>(endpoint: string): Promise<ApiResponse<T>> {
   try {
     const headers = await getAuthHeader();
+    console.log('GET İsteği:', `${API_URL}${endpoint}`);
+    console.log('Headers:', headers);
+    
     const response = await fetch(`${API_URL}${endpoint}`, {
       headers: { ...headers },
     });
     const data = await response.json();
+    console.log('GET Yanıtı:', data);
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Bir hata oluştu');
+    }
+    
     return { data };
   } catch (error) {
+    console.error('GET Hatası:', error);
     return { error: error instanceof Error ? error.message : String(error) };
   }
 }
@@ -31,6 +41,10 @@ export async function apiGet<T>(endpoint: string): Promise<ApiResponse<T>> {
 export async function apiPost<T>(endpoint: string, body: any): Promise<ApiResponse<T>> {
   try {
     const headers = await getAuthHeader();
+    console.log('POST İsteği:', `${API_URL}${endpoint}`);
+    console.log('Headers:', headers);
+    console.log('Body:', body);
+    
     const response = await fetch(`${API_URL}${endpoint}`, {
       method: 'POST',
       headers: {
@@ -40,8 +54,15 @@ export async function apiPost<T>(endpoint: string, body: any): Promise<ApiRespon
       body: JSON.stringify(body),
     });
     const data = await response.json();
+    console.log('POST Yanıtı:', data);
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Bir hata oluştu');
+    }
+    
     return { data };
   } catch (error) {
+    console.error('POST Hatası:', error);
     return { error: error instanceof Error ? error.message : String(error) };
   }
 }

@@ -19,7 +19,12 @@ interface Sensor {
   type: string;
   value: number;
   unit: string;
-  lastUpdated: string;
+  last_updated: string;
+  user: {
+    id: number;
+    full_name: string;
+  };
+  sensor_id: string;
 }
 
 export default function SensorScreen() {
@@ -35,7 +40,7 @@ export default function SensorScreen() {
   }, []);
 
   const fetchSensors = async () => {
-    const { data, error } = await apiGet(API_ENDPOINTS.SENSORS);
+    const { data, error } = await apiGet('/sensors/my-sensors');
     if (error) {
       setError(error);
       console.log('API Hatası:', error);
@@ -50,14 +55,16 @@ export default function SensorScreen() {
     if (sensorId.trim() === '') return;
 
     const { data, error } = await apiPost(API_ENDPOINTS.SENSORS, {
-      id: sensorId.trim(),
+      sensor_id: sensorId.trim(),
     });
     if (error) {
       setError(error);
       console.log('API Hatası:', error);
       return;
     }
-    setSensors(prev => [...prev, data]);
+    if (data && typeof data === 'object' && !Array.isArray(data)) {
+      setSensors(prev => [...prev, data as Sensor]);
+    }
     setSensorId('');
     setShowInput(false);
   };
@@ -110,17 +117,15 @@ export default function SensorScreen() {
           {sensors.map((sensor) => (
             <TouchableOpacity
               key={sensor.id}
-              onPress={() =>
-                router.push(`/deger?sensorId=${sensor.id}`)
-              }>
+              onPress={() => router.push(`/deger?sensorId=${sensor.sensor_id}`)}>
               <View style={styles.card}>
-                <Text style={styles.cardLabel}>Sensör ID: {sensor.id}</Text>
+                <Text style={styles.cardLabel}>Sensör ID: {sensor.sensor_id}</Text>
                 <Text style={styles.cardType}>Tür: {sensor.type}</Text>
                 <Text style={styles.cardValue}>
                   Değer: {sensor.value} {sensor.unit}
                 </Text>
                 <Text style={styles.cardTime}>
-                  Son Güncelleme: {new Date(sensor.lastUpdated).toLocaleString('tr-TR')}
+                  Son Güncelleme: {new Date(sensor.last_updated).toLocaleString('tr-TR')}
                 </Text>
               </View>
             </TouchableOpacity>

@@ -17,10 +17,13 @@ import { apiGet, apiPost } from '../services/api';
 interface ForumMessage {
   id: number;
   content: string;
-  userId: number;
-  username: string;
-  createdAt: string;
-  updatedAt: string;
+  user: {
+    id: number;
+    full_name: string;
+    name: string;
+  };
+  created_at: string;
+  updated_at: string;
 }
 
 export default function CommunityChat() {
@@ -42,7 +45,18 @@ export default function CommunityChat() {
       setLoading(false);
       return;
     }
-    setMessages(data);
+    if (
+      data &&
+      typeof data === 'object' &&
+      !Array.isArray(data) &&
+      'id' in data &&
+      'content' in data &&
+      'user' in data &&
+      'created_at' in data &&
+      'updated_at' in data
+    ) {
+      setMessages(prev => [...prev, data as ForumMessage]);
+    }
     setLoading(false);
   };
 
@@ -57,7 +71,18 @@ export default function CommunityChat() {
       console.log('API Hatası:', error);
       return;
     }
-    setMessages(prev => [data, ...prev]);
+    if (
+      data &&
+      typeof data === 'object' &&
+      !Array.isArray(data) &&
+      'id' in data &&
+      'content' in data &&
+      'user' in data &&
+      'created_at' in data &&
+      'updated_at' in data
+    ) {
+      setMessages(prev => [...prev, data as ForumMessage]);
+    }
     setInputText('');
   };
 
@@ -98,12 +123,14 @@ export default function CommunityChat() {
       <FlatList
         data={messages}
         inverted
-        keyExtractor={(item) => item.id.toString()}
+        keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
         renderItem={({ item }) => (
           <View style={styles.messageContainer}>
-            <Text style={styles.username}>{item.username}</Text>
-            <Text style={styles.messageText}>{item.content}</Text>
-            <Text style={styles.time}>{new Date(item.createdAt).toLocaleString('tr-TR')}</Text>
+            <Text style={styles.username}>{item?.user?.full_name || item?.user?.name || 'Kullanıcı'}</Text>
+            <Text style={styles.messageText}>{item?.content || ''}</Text>
+            <Text style={styles.time}>
+              {item?.created_at ? new Date(item.created_at).toLocaleString('tr-TR') : ''}
+            </Text>
           </View>
         )}
         contentContainerStyle={styles.messagesList}

@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import FeatherIcon from '@expo/vector-icons/Feather';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   SafeAreaView,
@@ -11,6 +11,7 @@ import {
   View
 } from 'react-native';
 import { API_URL, API_ENDPOINTS } from './config/api';
+import { apiGet, apiPost } from './services/api';
 
 interface SensorValue {
   id: number;
@@ -19,10 +20,29 @@ interface SensorValue {
   unit: string;
   timestamp: string;
   type: string;
+  ph_value?: number;
+  nitrogen_ratio?: number;
+  phosphorus_ratio?: number;
+  potassium_ratio?: number;
+  humidity_ratio?: number;
+  soil_temperature?: number;
+  electrical_conductivity?: number;
+  magnesium_ratio?: number;
+  iron_ratio?: number;
+  calcium_ratio?: number;
+  boron_ratio?: number;
+  zinc_ratio?: number;
+  sulfur_ratio?: number;
 }
 
 export default function GridStatsWithIcons() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const sensorId = params.sensorId as string;
+  if (!sensorId) {
+    console.error('Geçersiz sensorId:', sensorId);
+    return;
+  }
   const [sensorValues, setSensorValues] = useState<SensorValue[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,12 +52,16 @@ export default function GridStatsWithIcons() {
 
   const fetchSensorValues = async () => {
     try {
-      const response = await fetch(`${API_URL}${API_ENDPOINTS.SENSORS}/values`);
-      if (!response.ok) {
-        throw new Error('Sensör değerleri yüklenirken bir hata oluştu');
+      // Önce sensörü bağla (bağlı değilse)
+      await apiPost(`/sensors/connect/${sensorId}`, {});
+      // Sonra random değerleri güncelle
+      await apiPost(`/sensors/${sensorId}/update`, {});
+      // Sonra güncel veriyi çek
+      const result = await apiGet<SensorValue>(`${API_ENDPOINTS.SENSORS}/${sensorId}`);
+      if (result.error) {
+        throw new Error(result.error);
       }
-      const data = await response.json();
-      setSensorValues(data);
+      setSensorValues([result.data!]);
     } catch (err) {
       console.error('Hata:', err);
     } finally {
@@ -65,7 +89,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>pH{ '\n' }Değeri:</Text>
-                <Text style={styles.statsItemValue}>832</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.ph_value ?? '-'}</Text>
               </View>
             </View>
             <View style={styles.statsItem}>
@@ -74,7 +98,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Azot (N){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>8</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.nitrogen_ratio ?? '-'}</Text>
               </View>
             </View>
           </View>
@@ -87,7 +111,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Fosfor (P){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>22</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.phosphorus_ratio ?? '-'}</Text>
               </View>
             </View>
             <View style={styles.statsItem}>
@@ -96,7 +120,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Potasyum (K){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>48</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.potassium_ratio ?? '-'}</Text>
               </View>
             </View>
           </View>
@@ -109,7 +133,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Nem{ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>83</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.humidity_ratio ?? '-'}</Text>
               </View>
             </View>
             <View style={styles.statsItem}>
@@ -118,7 +142,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Toprak{ '\n' }Sıcaklığı</Text>
-                <Text style={styles.statsItemValue}>25°C</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.soil_temperature ? `${sensorValues[0].soil_temperature}°C` : '-'}</Text>
               </View>
             </View>
           </View>
@@ -131,7 +155,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Elektriksel{ '\n' }İletkenlik (EC)</Text>
-                <Text style={styles.statsItemValue}>3.5</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.electrical_conductivity ?? '-'}</Text>
               </View>
             </View>
             <View style={styles.statsItem}>
@@ -140,7 +164,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Magnezyum (Mg){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>5</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.magnesium_ratio ?? '-'}</Text>
               </View>
             </View>
           </View>
@@ -153,7 +177,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Demir (Fe){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>3</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.iron_ratio ?? '-'}</Text>
               </View>
             </View>
             <View style={styles.statsItem}>
@@ -162,7 +186,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Kalsiyum (Ca){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>7</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.calcium_ratio ?? '-'}</Text>
               </View>
             </View>
           </View>
@@ -175,7 +199,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Bor (B){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>2</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.boron_ratio ?? '-'}</Text>
               </View>
             </View>
             <View style={styles.statsItem}>
@@ -184,7 +208,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Çinko (Zn){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>1</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.zinc_ratio ?? '-'}</Text>
               </View>
             </View>
           </View>
@@ -197,7 +221,7 @@ export default function GridStatsWithIcons() {
               </View>
               <View>
                 <Text style={styles.statsItemLabel}>Kükürt (S){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>4</Text>
+                <Text style={styles.statsItemValue}>{sensorValues[0]?.sulfur_ratio ?? '-'}</Text>
               </View>
             </View>
           </View>
