@@ -1,6 +1,6 @@
 import { Feather } from '@expo/vector-icons';
 import FontAwesome from '@expo/vector-icons/FontAwesome5';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
     SafeAreaView,
@@ -23,17 +23,19 @@ interface GrowthStage {
 
 export default function BuyumeScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const cropTypeId = params.cropTypeId;
   const [value, setValue] = React.useState(0);
   const [stages, setStages] = useState<GrowthStage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchGrowthStages();
-  }, []);
+  }, [cropTypeId]);
 
   const fetchGrowthStages = async () => {
     try {
-      const response = await fetch(`${API_URL}${API_ENDPOINTS.GROWTH_STAGES}`);
+      const response = await fetch(`${API_URL}/growth-stages/by-crop-type/${cropTypeId}`);
       if (!response.ok) {
         throw new Error('Büyüme aşamaları yüklenirken bir hata oluştu');
       }

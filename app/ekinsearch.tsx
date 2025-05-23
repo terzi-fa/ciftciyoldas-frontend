@@ -120,11 +120,11 @@ export default function EkinSearchScreen() {
         </View>
         <ScrollView contentContainerStyle={styles.searchContent}>
           {filteredRows.length ? (
-            filteredRows.map(({ name, description }, index) => (
+            filteredRows.map(({ id, name, description }, index) => (
               <View key={index} style={styles.cardWrapper}>
                 <TouchableOpacity
                   onPress={() => {
-                    router.push('/buyume');
+                    router.push(`/buyume?cropTypeId=${id}`);
                   }}
                 >
                   <View style={styles.card}>
