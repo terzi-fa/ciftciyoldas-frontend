@@ -21,6 +21,7 @@ interface OrganicFertilizer {
   precautions: string;
   quality: string;
   notes: string;
+  storageConditions: string;
 }
 
 export default function TestManagement() {
@@ -38,6 +39,7 @@ export default function TestManagement() {
     precautions: params.precautions as string,
     quality: params.material_quality as string,
     notes: params.notes as string,
+    storageConditions: params.storage_conditions as string,
   };
 
   const items = [
@@ -46,6 +48,7 @@ export default function TestManagement() {
     { label: 'Dozaj', description: fertilizer.dosage },
     { label: 'Dikkat Edilmesi Gerekenler', description: fertilizer.precautions },
     { label: 'Malzeme Kalitesi/İçeriği', description: fertilizer.quality },
+    { label: 'Depolama Koşulları', description: fertilizer.storageConditions },
     { label: 'Notlar', description: fertilizer.notes },
   ];
 

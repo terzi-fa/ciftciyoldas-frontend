@@ -107,11 +107,16 @@ export default function PlanOptions() {
       }
       const data = await response.json();
       console.log('Gübre response:', data);
-      // Benzersiz gübreleri filtrele
+      // Benzersiz gübreleri filtrele ve fertilizer_rules alanlarını da ekle
       const uniqueFertilizersMap = new Map();
       (Array.isArray(data) ? data : data.data).forEach((item: any) => {
         if (item.fertilizer && !uniqueFertilizersMap.has(item.fertilizer.id)) {
-          uniqueFertilizersMap.set(item.fertilizer.id, item.fertilizer);
+          uniqueFertilizersMap.set(item.fertilizer.id, {
+            ...item.fertilizer,
+            application_method: item.application_method,
+            dosage: item.dosage,
+            notes: item.notes,
+          });
         }
       });
       setItems(Array.from(uniqueFertilizersMap.values()));
