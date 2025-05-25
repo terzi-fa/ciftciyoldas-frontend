@@ -1,5 +1,5 @@
 import FeatherIcon from '@expo/vector-icons/Feather';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import {
   SafeAreaView,
@@ -11,6 +11,16 @@ import {
 
 export default function hazirlaniyo() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+
+  const handleContinue = () => {
+    router.push({
+      pathname: '/plan',
+      params: {
+        ...params
+      }
+    });
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fff' }}>
@@ -26,7 +36,7 @@ export default function hazirlaniyo() {
             Tebrikler!{'\n'}Toprağın adına önemli bir adım attın!
           </Text>
 
-          <TouchableOpacity onPress={() => router.push('/plan')}>
+          <TouchableOpacity onPress={handleContinue}>
             <View style={styles.btn}>
               <Text style={styles.btnText}>Devam et</Text>
             </View>

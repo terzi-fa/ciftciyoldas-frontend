@@ -238,7 +238,27 @@ export default function GridStatsWithIcons() {
       {/* Alt sağ köşede FAB */}
       <TouchableOpacity
         style={styles.fab}
-        onPress={() => router.push('/ekinsearch')}
+        onPress={() => {
+          const values = sensorValues[0];
+          router.push({
+            pathname: '/ekinsearch',
+            params: {
+              ph_value: values?.ph_value ?? '',
+              nitrogen: values?.nitrogen_ratio ?? '',
+              phosphorus: values?.phosphorus_ratio ?? '',
+              potassium: values?.potassium_ratio ?? '',
+              magnesium: values?.magnesium_ratio ?? '',
+              zinc: values?.zinc_ratio ?? '',
+              boron: values?.boron_ratio ?? '',
+              sulfur: values?.sulfur_ratio ?? '',
+              calcium: values?.calcium_ratio ?? '',
+              iron: values?.iron_ratio ?? '',
+              humidity: values?.humidity_ratio ?? '',
+              soil_temperature: values?.soil_temperature ?? '',
+              electrical_conductivity: values?.electrical_conductivity ?? '',
+            }
+          });
+        }}
       >
         <Text style={styles.fabText}>Ekin Türüm</Text>
       </TouchableOpacity>

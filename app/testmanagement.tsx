@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { API_URL, API_ENDPOINTS } from './config/api';
 
 interface OrganicFertilizer {
@@ -25,76 +25,29 @@ interface OrganicFertilizer {
 
 export default function TestManagement() {
   const [value, setValue] = React.useState(0);
-  const [fertilizer, setFertilizer] = useState<OrganicFertilizer | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const params = useLocalSearchParams();
 
-  useEffect(() => {
-    fetchFertilizerInfo();
-  }, []);
-
-  const fetchFertilizerInfo = async () => {
-    try {
-      const response = await fetch(`${API_URL}${API_ENDPOINTS.ORGANIC_FERTILIZERS}`);
-      if (!response.ok) {
-        throw new Error('Gübre bilgileri yüklenirken bir hata oluştu');
-      }
-      const data = await response.json();
-      setFertilizer(data[0]); // İlk gübreyi alıyoruz
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bir hata oluştu');
-    } finally {
-      setLoading(false);
-    }
+  // Parametrelerden gübre objesini oluştur
+  const fertilizer: OrganicFertilizer = {
+    id: Number(params.id),
+    name: params.name as string,
+    description: params.description as string,
+    applicationMethod: params.application_method as string,
+    dosage: params.dosage as string,
+    precautions: params.precautions as string,
+    quality: params.material_quality as string,
+    notes: params.notes as string,
   };
 
-  const items = fertilizer ? [
-    {
-      label: 'Tanım',
-      description: fertilizer.description,
-    },
-    {
-      label: 'Uygulama Metodu',
-      description: fertilizer.applicationMethod,
-    },
-    {
-      label: 'Dozaj',
-      description: fertilizer.dosage,
-    },
-    {
-      label: 'Dikkat Edilmesi Gerekenler',
-      description: fertilizer.precautions,
-    },
-    {
-      label: 'Malzeme Kalitesi/İçeriği',
-      description: fertilizer.quality,
-    },
-    {
-      label: 'Notlar',
-      description: fertilizer.notes,
-    },
-  ] : [];
-
-  if (loading) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fafafa' }}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color="#0069fe" />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (error) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#fafafa' }}>
-        <View style={styles.centered}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  const items = [
+    { label: 'Tanım', description: fertilizer.description },
+    { label: 'Uygulama Metodu', description: fertilizer.applicationMethod },
+    { label: 'Dozaj', description: fertilizer.dosage },
+    { label: 'Dikkat Edilmesi Gerekenler', description: fertilizer.precautions },
+    { label: 'Malzeme Kalitesi/İçeriği', description: fertilizer.quality },
+    { label: 'Notlar', description: fertilizer.notes },
+  ];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fafafa' }}>
@@ -106,7 +59,6 @@ export default function TestManagement() {
         </TouchableOpacity>
         <Text style={styles.title}>Hakkında</Text>
       </View>
-
       <ScrollView 
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
@@ -115,7 +67,6 @@ export default function TestManagement() {
         {items.map(({ label, description }, index) => {
           const isActive = value === index;
           const isLongDescription = ['Uygulama Metodu', 'Dikkat Edilmesi Gerekenler', 'Notlar'].includes(label);
-          
           return (
             <TouchableOpacity
               key={index}
@@ -130,7 +81,6 @@ export default function TestManagement() {
                 <View style={styles.radioTop}>
                   <Text style={styles.radioLabel}>{label}</Text>
                 </View>
-
                 <Text style={styles.radioDescription}>{description}</Text>
               </View>
             </TouchableOpacity>

@@ -1,5 +1,5 @@
 import { Feather } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState, useEffect } from 'react';
 import {
   Image,
@@ -32,6 +32,7 @@ export default function EkinSearchScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const params = useLocalSearchParams();
 
   useEffect(() => {
     fetchCropTypes();
@@ -124,7 +125,13 @@ export default function EkinSearchScreen() {
               <View key={index} style={styles.cardWrapper}>
                 <TouchableOpacity
                   onPress={() => {
-                    router.push(`/buyume?cropTypeId=${id}`);
+                    router.push({
+                      pathname: '/buyume',
+                      params: {
+                        cropTypeId: id,
+                        ...params
+                      }
+                    });
                   }}
                 >
                   <View style={styles.card}>

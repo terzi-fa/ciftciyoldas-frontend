@@ -40,6 +40,7 @@ export default function BuyumeScreen() {
         throw new Error('Büyüme aşamaları yüklenirken bir hata oluştu');
       }
       const data = await response.json();
+      console.log('Büyüme evreleri response:', data);
       setStages(data);
     } catch (err) {
       console.error('Hata:', err);
@@ -50,7 +51,15 @@ export default function BuyumeScreen() {
 
   const handlePress = (index: number) => {
     setValue(index);
-    router.push('/hazirlaniyo' as any);
+    const stage = stages[index];
+    router.push({
+      pathname: '/hazirlaniyo',
+      params: {
+        cropTypeId,
+        growthStageId: stage.id,
+        ...params
+      }
+    });
   };
 
   if (loading) {
