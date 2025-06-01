@@ -1,6 +1,6 @@
 // app/chat.tsx
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   FlatList,
   SafeAreaView,
@@ -10,7 +10,9 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL, API_ENDPOINTS } from '../config/api';
 import { apiGet, apiPost } from '../services/api';
 
@@ -26,64 +28,96 @@ interface ForumMessage {
   updated_at: string;
 }
 
+const STORAGE_KEY = '@chat_messages';
+
 export default function CommunityChat() {
   const router = useRouter();
   const [messages, setMessages] = useState<ForumMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchMessages();
+  // Mesajları AsyncStorage'dan yükle
+  const loadMessagesFromStorage = useCallback(async () => {
+    try {
+      const storedMessages = await AsyncStorage.getItem(STORAGE_KEY);
+      if (storedMessages) {
+        setMessages(JSON.parse(storedMessages));
+      }
+    } catch (err) {
+      console.error('Mesajlar yüklenirken hata:', err);
+    }
   }, []);
 
-  const fetchMessages = async () => {
-    const { data, error } = await apiGet(API_ENDPOINTS.FORUM_MESSAGES);
-    if (error) {
-      setError(error);
-      console.log('API Hatası:', error);
+  // Mesajları AsyncStorage'a kaydet
+  const saveMessagesToStorage = useCallback(async (newMessages: ForumMessage[]) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newMessages));
+    } catch (err) {
+      console.error('Mesajlar kaydedilirken hata:', err);
+    }
+  }, []);
+
+  const fetchMessages = useCallback(async () => {
+    try {
+      const { data, error } = await apiGet(API_ENDPOINTS.FORUM_MESSAGES);
+      if (error) {
+        setError(error);
+        console.log('API Hatası:', error);
+        return;
+      }
+      if (Array.isArray(data)) {
+        const sortedMessages = data.sort((a, b) => 
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+        setMessages(sortedMessages);
+        await saveMessagesToStorage(sortedMessages);
+      }
+    } catch (err) {
+      setError('Mesajlar yüklenirken bir hata oluştu');
+      console.error('Mesaj yükleme hatası:', err);
+    } finally {
       setLoading(false);
-      return;
+      setRefreshing(false);
     }
-    if (
-      data &&
-      typeof data === 'object' &&
-      !Array.isArray(data) &&
-      'id' in data &&
-      'content' in data &&
-      'user' in data &&
-      'created_at' in data &&
-      'updated_at' in data
-    ) {
-      setMessages(prev => [...prev, data as ForumMessage]);
-    }
-    setLoading(false);
-  };
+  }, [saveMessagesToStorage]);
+
+  useEffect(() => {
+    loadMessagesFromStorage();
+    fetchMessages();
+    // 10 saniyede bir mesajları güncelle
+    const interval = setInterval(fetchMessages, 10000);
+    return () => clearInterval(interval);
+  }, [fetchMessages, loadMessagesFromStorage]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchMessages();
+  }, [fetchMessages]);
 
   const sendMessage = async () => {
     if (inputText.trim().length === 0) return;
 
-    const { data, error } = await apiPost(API_ENDPOINTS.FORUM_MESSAGES, {
-      content: inputText.trim(),
-    });
-    if (error) {
-      setError(error);
-      console.log('API Hatası:', error);
-      return;
+    try {
+      const { data, error } = await apiPost(API_ENDPOINTS.FORUM_MESSAGES, {
+        content: inputText.trim(),
+      });
+      if (error) {
+        setError(error);
+        console.log('API Hatası:', error);
+        return;
+      }
+      if (data) {
+        const newMessages = [data, ...messages];
+        setMessages(newMessages);
+        await saveMessagesToStorage(newMessages);
+      }
+      setInputText('');
+    } catch (err) {
+      setError('Mesaj gönderilirken bir hata oluştu');
+      console.error('Mesaj gönderme hatası:', err);
     }
-    if (
-      data &&
-      typeof data === 'object' &&
-      !Array.isArray(data) &&
-      'id' in data &&
-      'content' in data &&
-      'user' in data &&
-      'created_at' in data &&
-      'updated_at' in data
-    ) {
-      setMessages(prev => [...prev, data as ForumMessage]);
-    }
-    setInputText('');
   };
 
   if (loading) {
@@ -98,6 +132,9 @@ export default function CommunityChat() {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchMessages}>
+          <Text style={styles.retryButtonText}>Tekrar Dene</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -123,7 +160,10 @@ export default function CommunityChat() {
       <FlatList
         data={messages}
         inverted
-        keyExtractor={(item, index) => (item && item.id ? item.id.toString() : index.toString())}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        keyExtractor={(item) => item.id.toString()}
         renderItem={({ item }) => (
           <View style={styles.messageContainer}>
             <Text style={styles.username}>{item?.user?.full_name || item?.user?.name || 'Kullanıcı'}</Text>
@@ -196,7 +236,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
     flexGrow: 1,
-    justifyContent: 'flex-end',
   },
   messageContainer: {
     backgroundColor: '#FFFFFF',
@@ -255,5 +294,16 @@ const styles = StyleSheet.create({
     color: 'red',
     fontSize: 16,
     textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#006400',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
   },
 });
