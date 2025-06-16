@@ -58,6 +58,7 @@ export default function GridStatsWithIcons() {
       await apiPost(`/sensors/${sensorId}/update`, {});
       // Sonra güncel veriyi çek
       const result = await apiGet<SensorValue>(`${API_ENDPOINTS.SENSORS}/${sensorId}`);
+      console.log("API'den gelen sensör verisi:", result);
       if (result.error) {
         throw new Error(result.error);
       }

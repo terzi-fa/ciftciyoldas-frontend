@@ -59,9 +59,13 @@ export default function SensorScreen() {
     });
     if (error) {
       setError(error);
+      setTimeout(() => setError(null), 2000);
       console.log('API Hatası:', error);
       return;
     }
+    const connectResult = await apiPost(`/sensors/connect/${sensorId.trim()}`, {});
+    console.log('Sensör bağlama sonucu:', connectResult);
+    await apiPost(`/sensors/${sensorId.trim()}/update`, {});
     if (data && typeof data === 'object' && !Array.isArray(data)) {
       setSensors(prev => [...prev, data as Sensor]);
     }
@@ -77,17 +81,12 @@ export default function SensorScreen() {
     );
   }
 
-  if (error) {
-    return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error}</Text>
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#fafafa' }}>
       <View style={styles.container}>
+        {error && (
+          <Text style={styles.errorText}>{error}</Text>
+        )}
         <Text style={styles.title}>Hadi sensörünü ekle,toprağının durumuna bakalım!</Text>
 
         {/* Sensör Ekle Butonu */}
