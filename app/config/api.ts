@@ -22,8 +22,11 @@ export const API_ENDPOINTS = {
   // Sensors
   SENSORS: '/sensors',
   
-  // News
+  // News - Yeni harici API endpoint'leri
   NEWS: '/news',
+  AGRICULTURE_NEWS: '/news/agriculture',
+  LATEST_AGRICULTURE_NEWS: '/news/agriculture/latest',
+  AGRICULTURE_NEWS_RSS: '/news/agriculture/rss',
   
   // Growth Stages
   GROWTH_STAGES: '/growth-stages',

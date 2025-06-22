@@ -10,17 +10,18 @@ import {
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator
+  ActivityIndicator,
+  Linking
 } from 'react-native';
 import { API_URL, API_ENDPOINTS } from '../config/api';
 
 interface News {
-  id: number;
   title: string;
   content: string;
-  imageUrl: string;
-  category: string;
-  createdAt: string;
+  url: string;
+  image_url: string;
+  published_at: string;
+  source: string;
 }
 
 export default function NewsFeed() {
@@ -31,14 +32,15 @@ export default function NewsFeed() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchNews();
+    fetchAgricultureNews();
   }, []);
 
-  const fetchNews = async () => {
+  const fetchAgricultureNews = async () => {
     try {
-      const response = await fetch(`${API_URL}${API_ENDPOINTS.NEWS}`);
+      setLoading(true);
+      const response = await fetch(`${API_URL}${API_ENDPOINTS.LATEST_AGRICULTURE_NEWS}`);
       if (!response.ok) {
-        throw new Error('Haberler yüklenirken bir hata oluştu');
+        throw new Error('Tarım haberleri yüklenirken bir hata oluştu');
       }
       const data = await response.json();
       setNews(data);
@@ -46,6 +48,14 @@ export default function NewsFeed() {
       setError(err instanceof Error ? err.message : 'Bir hata oluştu');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openNewsUrl = async (url: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error('URL açılamadı:', error);
     }
   };
 
@@ -80,6 +90,7 @@ export default function NewsFeed() {
     return (
       <View style={styles.centered}>
         <ActivityIndicator size="large" color="#8B4513" />
+        <Text style={styles.loadingText}>Tarım haberleri yükleniyor...</Text>
       </View>
     );
   }
@@ -88,6 +99,9 @@ export default function NewsFeed() {
     return (
       <View style={styles.centered}>
         <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={fetchAgricultureNews}>
+          <Text style={styles.retryButtonText}>Tekrar Dene</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -102,48 +116,59 @@ export default function NewsFeed() {
             onPress={() => setModalVisible(true)}>
             <FeatherIcon color="#8B4513" name="log-out" size={24} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Tarla Sözcüsünden Haberler</Text>
+          <Text style={styles.headerTitle}>Tarım Haberleri</Text>
         </View>
         <View style={styles.headerAction}>
-          <TouchableOpacity onPress={fetchNews}>
-            <FeatherIcon color="#8B4513" name="rss" size={21} />
+          <TouchableOpacity onPress={fetchAgricultureNews}>
+            <FeatherIcon color="#8B4513" name="refresh-cw" size={21} />
           </TouchableOpacity>
         </View>
       </View>
 
       {/* Haber Kartları */}
       <ScrollView contentContainerStyle={styles.content}>
-        {news.map((item) => (
-          <TouchableOpacity
-            key={item.id}
-            onPress={() => {
-              // Haber detayına yönlendirme
-            }}>
-            <View style={styles.card}>
-              <Image
-                alt=""
-                resizeMode="cover"
-                source={{ uri: item.imageUrl }}
-                style={styles.cardImg}
-              />
-              <View style={styles.cardBody}>
-                <Text style={styles.cardTag}>{item.category}</Text>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <View style={styles.cardRow}>
-                  <View style={styles.cardRowItem}>
-                    {/* Avatar ve yazar adı kaldırıldı */}
-                  </View>
-                  <Text style={styles.cardRowDivider}>·</Text>
-                  <View style={styles.cardRowItem}>
-                    <Text style={styles.cardRowItemText}>
-                      {new Date(item.createdAt).toLocaleDateString('tr-TR')}
-                    </Text>
+        {news.length === 0 ? (
+          <View style={styles.noNewsContainer}>
+            <Text style={styles.noNewsText}>Henüz tarım haberi bulunamadı</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchAgricultureNews}>
+              <Text style={styles.retryButtonText}>Yenile</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          news.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => openNewsUrl(item.url)}>
+              <View style={styles.card}>
+                <Image
+                  alt=""
+                  resizeMode="cover"
+                  source={{ uri: item.image_url || 'https://via.placeholder.com/300x200?text=Tarım+Haberi' }}
+                  style={styles.cardImg}
+                />
+                <View style={styles.cardBody}>
+                  <Text style={styles.cardTag}>{item.source}</Text>
+                  <Text style={styles.cardTitle}>{item.title}</Text>
+                  <Text style={styles.cardContent} numberOfLines={3}>
+                    {item.content}
+                  </Text>
+                  <View style={styles.cardRow}>
+                    <View style={styles.cardRowItem}>
+                      <Text style={styles.cardRowItemText}>
+                        {new Date(item.published_at).toLocaleDateString('tr-TR')}
+                      </Text>
+                    </View>
+                    <Text style={styles.cardRowDivider}>·</Text>
+                    <View style={styles.cardRowItem}>
+                      <Text style={styles.cardRowItemText}>Detayları Gör</Text>
+                    </View>
                   </View>
                 </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          ))
+        )}
+        
         {/* Hızlı Erişim Kartları */}
         {renderQuickAccessCards()}
       </ScrollView>
@@ -288,6 +313,12 @@ const styles = StyleSheet.create({
     color: '#000000',
     marginBottom: 8,
   },
+  cardContent: {
+    fontSize: 14,
+    lineHeight: 18,
+    color: '#666666',
+    marginBottom: 8,
+  },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -365,5 +396,30 @@ const styles = StyleSheet.create({
   errorText: {
     fontSize: 16,
     color: 'red',
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#8B4513',
+    marginTop: 16,
+  },
+  noNewsContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noNewsText: {
+    fontSize: 16,
+    color: '#333',
+    marginBottom: 16,
+  },
+  retryButton: {
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: '#8B4513',
+  },
+  retryButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
