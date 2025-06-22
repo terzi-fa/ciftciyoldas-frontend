@@ -8,6 +8,7 @@ interface ApiResponse<T> {
 
 async function getAuthHeader(): Promise<{ [key: string]: string }> {
   const token = await AsyncStorage.getItem('token');
+  console.log('Kullanıcı token:', token);
   if (token) {
     return { Authorization: `Bearer ${token}` };
   }

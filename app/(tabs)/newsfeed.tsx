@@ -49,6 +49,33 @@ export default function NewsFeed() {
     }
   };
 
+  const renderQuickAccessCards = () => (
+    <View style={styles.quickAccessContainer}>
+      <Text style={styles.quickAccessTitle}>Hızlı Erişim</Text>
+      <View style={styles.quickAccessGrid}>
+        <TouchableOpacity 
+          style={styles.quickAccessCard}
+          onPress={() => router.push('/organic-protection')}
+        >
+          <View style={[styles.quickAccessIcon, { backgroundColor: '#4CAF50' }]}>
+            <FeatherIcon name="shield" size={24} color="white" />
+          </View>
+          <Text style={styles.quickAccessText}>Organik Koruma</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.quickAccessCard}
+          onPress={() => router.push('/crop-rotation')}
+        >
+          <View style={[styles.quickAccessIcon, { backgroundColor: '#2196F3' }]}>
+            <FeatherIcon name="calendar" size={24} color="white" />
+          </View>
+          <Text style={styles.quickAccessText}>Ekim Planı</Text>
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -117,6 +144,8 @@ export default function NewsFeed() {
             </View>
           </TouchableOpacity>
         ))}
+        {/* Hızlı Erişim Kartları */}
+        {renderQuickAccessCards()}
       </ScrollView>
 
       {/* Çıkış Onay Modalı */}
@@ -156,6 +185,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#fff',
   },
   /** Header */
   header: {
@@ -175,15 +205,52 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   headerTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#000000',
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
   },
   headerAction: {
     width: 40,
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  /** Quick Access Cards */
+  quickAccessContainer: {
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  quickAccessTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 12,
+  },
+  quickAccessGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  quickAccessCard: {
+    alignItems: 'center',
+    width: '45%',
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: '#f9f9f9',
+    borderWidth: 1,
+    borderColor: '#eee',
+  },
+  quickAccessIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  quickAccessText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#555',
   },
   /** Card */
   card: {
@@ -296,8 +363,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   errorText: {
-    color: 'red',
     fontSize: 16,
-    textAlign: 'center',
+    color: 'red',
   },
 });

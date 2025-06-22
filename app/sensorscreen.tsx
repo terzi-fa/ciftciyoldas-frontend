@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
@@ -10,8 +10,8 @@ import {
   View,
   ActivityIndicator
 } from 'react-native';
-import { API_URL, API_ENDPOINTS } from '../config/api';
-import { apiGet, apiPost } from '../services/api';
+import { API_URL, API_ENDPOINTS } from './config/api';
+import { apiGet, apiPost } from './services/api';
 
 interface Sensor {
   id: number;
@@ -25,10 +25,12 @@ interface Sensor {
     full_name: string;
   };
   sensor_id: string;
+  field_id?: number;
 }
 
 export default function SensorScreen() {
   const router = useRouter();
+  const { fieldId, fieldName } = useLocalSearchParams<{ fieldId: string; fieldName: string }>();
   const [sensors, setSensors] = useState<Sensor[]>([]);
   const [showInput, setShowInput] = useState(false);
   const [sensorId, setSensorId] = useState('');
@@ -36,18 +38,20 @@ export default function SensorScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchSensors();
-  }, []);
+    if (fieldId) {
+      fetchSensors();
+    }
+  }, [fieldId]);
 
   const fetchSensors = async () => {
-    const { data, error } = await apiGet('/sensors/my-sensors');
+    setLoading(true);
+    const { data, error } = await apiGet(`/sensors/field/${fieldId}`);
     if (error) {
       setError(error);
       console.log('API Hatası:', error);
-      setLoading(false);
-      return;
+    } else {
+      setSensors(Array.isArray(data) ? data : []);
     }
-    setSensors(Array.isArray(data) ? data : []);
     setLoading(false);
   };
 
@@ -56,6 +60,7 @@ export default function SensorScreen() {
 
     const { data, error } = await apiPost(API_ENDPOINTS.SENSORS, {
       sensor_id: sensorId.trim(),
+      field_id: Number(fieldId), // Tarla ID'sini sayıya çevirerek ekle
     });
     if (error) {
       setError(error);
@@ -87,7 +92,8 @@ export default function SensorScreen() {
         {error && (
           <Text style={styles.errorText}>{error}</Text>
         )}
-        <Text style={styles.title}>Hadi sensörünü ekle,toprağının durumuna bakalım!</Text>
+        <Text style={styles.title}>{fieldName ? decodeURIComponent(fieldName) : 'Sensörlerim'}</Text>
+        <Text style={styles.subtitle}>Hadi sensörünü ekle, toprağının durumuna bakalım!</Text>
 
         {/* Sensör Ekle Butonu */}
         <TouchableOpacity
@@ -113,22 +119,28 @@ export default function SensorScreen() {
 
         {/* Eklenen sensör ID'lerini liste olarak göster */}
         <ScrollView style={{ flex: 1 }}>
-          {sensors.map((sensor) => (
-            <TouchableOpacity
-              key={sensor.id}
-              onPress={() => router.push(`/deger?sensorId=${sensor.sensor_id}`)}>
-              <View style={styles.card}>
-                <Text style={styles.cardLabel}>Sensör ID: {sensor.sensor_id}</Text>
-                <Text style={styles.cardType}>Tür: {sensor.type}</Text>
-                <Text style={styles.cardValue}>
-                  Değer: {sensor.value} {sensor.unit}
-                </Text>
-                <Text style={styles.cardTime}>
-                  Son Güncelleme: {new Date(sensor.last_updated).toLocaleString('tr-TR')}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          ))}
+          {sensors.length === 0 && !loading ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>Bu tarlaya henüz sensör eklenmemiş.</Text>
+            </View>
+          ) : (
+            sensors.map((sensor) => (
+              <TouchableOpacity
+                key={sensor.id}
+                onPress={() => router.push(`/deger?sensorId=${sensor.sensor_id}&fieldId=${fieldId}`)}>
+                <View style={styles.card}>
+                  <Text style={styles.cardLabel}>Sensör ID: {sensor.sensor_id}</Text>
+                  <Text style={styles.cardType}>Tür: {sensor.type}</Text>
+                  <Text style={styles.cardValue}>
+                    Değer: {sensor.value} {sensor.unit}
+                  </Text>
+                  <Text style={styles.cardTime}>
+                    Son Güncelleme: {new Date(sensor.last_updated).toLocaleString('tr-TR')}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          )}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -147,10 +159,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
     color: '#5D4037',
-    marginBottom: 12,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 18,
+    color: '#6D4C41',
+    marginBottom: 20,
+    textAlign: 'center',
   },
   addButton: {
     backgroundColor: '#5D4037',
@@ -186,6 +205,14 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+  emptyContainer: {
+    marginTop: 50,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#A1887F',
   },
   card: {
     backgroundColor: '#FFFFFF',

@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   View,
   ActivityIndicator,
-  ScrollView
+  ScrollView,
+  Alert
 } from 'react-native';
 import { API_URL } from './config/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -19,30 +20,30 @@ export default function PlanOptions() {
   console.log('Gelen parametreler:', params); // Debug için eklendi
   const cropTypeId = params.cropTypeId;
   const growthStageId = params.growthStageId;
-  // Örnek: nutrients parametresi, gerçek uygulamada kullanıcıdan alınmalı
+
+  // Gelen parametreleri doğru isimlerle al
   const nutrients = {
-    potassium: params.potassium,
-    zinc: params.zinc,
-    nitrogen: params.nitrogen,
-    phosphorus: params.phosphorus,
-    magnesium: params.magnesium,
-    boron: params.boron,
-    sulfur: params.sulfur,
-    calcium: params.calcium,
-    iron: params.iron,
-    // Diğer besinler eklenebilir
+    potassium_ratio: params.potassium_ratio,
+    zinc_ratio: params.zinc_ratio,
+    nitrogen_ratio: params.nitrogen_ratio,
+    phosphorus_ratio: params.phosphorus_ratio,
+    magnesium_ratio: params.magnesium_ratio,
+    boron_ratio: params.boron_ratio,
+    sulfur_ratio: params.sulfur_ratio,
+    calcium_ratio: params.calcium_ratio,
+    iron_ratio: params.iron_ratio,
   };
 
-  // Nutrient mapping: veritabanı ile birebir eşleşme
+  // API'nin beklediği formata dönüştür
   const nutrientMap = {
-    N: params.nitrogen,
-    P: params.phosphorus,
-    K: params.potassium,
-    Mg: params.magnesium,
-    B: params.boron,
-    Ca: params.calcium,
-    Zn: params.zinc,
-    S: params.sulfur,
+    N: nutrients.nitrogen_ratio,
+    P: nutrients.phosphorus_ratio,
+    K: nutrients.potassium_ratio,
+    Mg: nutrients.magnesium_ratio,
+    B: nutrients.boron_ratio,
+    Ca: nutrients.calcium_ratio,
+    Zn: nutrients.zinc_ratio,
+    S: nutrients.sulfur_ratio,
   };
 
   // Parametre kontrolü
@@ -55,7 +56,7 @@ export default function PlanOptions() {
   }
 
   // Besin değerlerinden en az biri tanımlı mı kontrolü (örnek)
-  const hasNutrient = Object.values(nutrientMap).some(val => val !== undefined && val !== null && val !== '');
+  const hasNutrient = Object.values(nutrients).some(val => val !== undefined && val !== null && val !== '');
   if (!hasNutrient) {
     return (
       <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
@@ -70,62 +71,85 @@ export default function PlanOptions() {
     price?: number;
     description?: string;
   }
-  const [items, setItems] = useState<Fertilizer[]>([]);
+  const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [value, setValue] = useState(0);
   const pathname = usePathname();
 
   useEffect(() => {
-    fetchRecommendedFertilizers();
-  }, [cropTypeId, growthStageId, JSON.stringify(nutrientMap)]);
-
-  const fetchRecommendedFertilizers = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const token = await AsyncStorage.getItem('token');
-      const body = {
-        cropTypeId: Number(cropTypeId),
-        growthStageId: Number(growthStageId),
-        nutrients: nutrientMap,
-      };
-      console.log('Gübre API body:', body);
-      const response = await fetch(`${API_URL}/fertilizer-rules/recommendations`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-        },
-        body: JSON.stringify(body),
-      });
-      console.log('Gübre API response status:', response.status);
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Gübre API error:', errorText);
-        throw new Error('Uygun gübreler yüklenirken bir hata oluştu: ' + errorText);
+    const fetchRecommendations = async () => {
+      if (!cropTypeId || !growthStageId || !nutrientMap) {
+        setLoading(false);
+        return;
       }
-      const data = await response.json();
-      console.log('Gübre response:', data);
-      // Benzersiz gübreleri filtrele ve fertilizer_rules alanlarını da ekle
-      const uniqueFertilizersMap = new Map();
-      (Array.isArray(data) ? data : data.data).forEach((item: any) => {
-        if (item.fertilizer && !uniqueFertilizersMap.has(item.fertilizer.id)) {
-          uniqueFertilizersMap.set(item.fertilizer.id, {
-            ...item.fertilizer,
-            application_method: item.application_method,
-            dosage: item.dosage,
-            notes: item.notes,
-          });
+
+      try {
+        console.log('Gübre önerisi için gönderilen parametreler:', {
+          cropTypeId,
+          growthStageId,
+          nutrients: nutrientMap,
+        });
+
+        const token = await AsyncStorage.getItem('token');
+        const response = await fetch(`${API_URL}/fertilizer-recommendations`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}` 
+          },
+          body: JSON.stringify({
+            cropTypeId: Number(cropTypeId),
+            growthStageId: Number(growthStageId),
+            nutrients: nutrientMap,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Gübre önerileri alınamadı.');
         }
-      });
-      setItems(Array.from(uniqueFertilizersMap.values()));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Bir hata oluştu');
-    } finally {
-      setLoading(false);
-    }
-  };
+
+        const data = await response.json();
+        console.log('Gübre API response:', data);
+
+        // Hava durumu uyarısını göster
+        if (data.weatherAdvice) {
+          Alert.alert("Hava Durumu Uyarısı", data.weatherAdvice);
+        }
+
+        // Benzersiz gübreleri filtrele ve fertilizer_rules alanlarını da ekle
+        const uniqueFertilizersMap = new Map();
+        
+        // Gelen verinin 'rules' dizisini kontrol et
+        if (data && Array.isArray(data.rules)) {
+          data.rules.forEach((item: any) => {
+            if (item.fertilizer && !uniqueFertilizersMap.has(item.fertilizer.id)) {
+              uniqueFertilizersMap.set(item.fertilizer.id, {
+                ...item.fertilizer,
+                application_method: item.application_method,
+                recommended_amount: item.recommended_amount,
+                frequency: item.frequency,
+                nutrient_type: item.nutrient_type,
+                operator: item.operator,
+                value: item.value,
+              });
+            }
+          });
+        } else {
+          console.log("API'den beklenen formatta (data.rules bir dizi değil) veri gelmedi.");
+        }
+
+
+        setItems(Array.from(uniqueFertilizersMap.values()));
+      } catch (error) {
+        console.error("Gübre önerileri alınırken hata oluştu:", error);
+        Alert.alert('Hata', 'Gübre önerileri yüklenirken bir sorun oluştu.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRecommendations();
+  }, [cropTypeId, growthStageId, JSON.stringify(nutrientMap)]);
 
   if (loading) {
     return (
@@ -172,10 +196,12 @@ export default function PlanOptions() {
           <Feather name="home" size={28} color={pathname === '/newsfeed' ? '#075eec' : 'gray'} />
           <Text style={{ fontSize: 12, color: pathname === '/newsfeed' ? '#075eec' : 'gray' }}>Ana Sayfa</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navButton} onPress={() => router.replace('/sensorscreen')}>
-          <Feather name="search" size={28} color={pathname === '/sensorscreen' ? '#075eec' : 'gray'} />
-          <Text style={{ fontSize: 12, color: pathname === '/sensorscreen' ? '#075eec' : 'gray' }}>Sensör</Text>
+
+        <TouchableOpacity style={styles.navButton} onPress={() => router.replace('/fields')}>
+          <Feather name="map" size={28} color={pathname === '/fields' ? '#075eec' : 'gray'} />
+          <Text style={{ fontSize: 12, color: pathname === '/fields' ? '#075eec' : 'gray' }}>Tarlalarım</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navButton} onPress={() => router.replace('/chat')}>
           <Feather name="message-circle" size={28} color={pathname === '/chat' ? '#075eec' : 'gray'} />
           <Text style={{ fontSize: 12, color: pathname === '/chat' ? '#075eec' : 'gray' }}>Chat</Text>

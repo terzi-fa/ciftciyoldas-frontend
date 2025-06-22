@@ -20,11 +20,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="sensorscreen"
+        name="fields"
         options={{
-          title: 'Sensör',
+          title: 'Tarlalar',
           tabBarIcon: ({ color, size }) => (
-            <Feather name="search" color={color} size={size} />
+            <Feather name="map" color={color} size={size} />
           ),
         }}
       />

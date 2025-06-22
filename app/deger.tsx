@@ -1,25 +1,22 @@
 import { Feather } from '@expo/vector-icons';
-import FeatherIcon from '@expo/vector-icons/Feather';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
+  Dimensions,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
+  ActivityIndicator,
 } from 'react-native';
-import { API_URL, API_ENDPOINTS } from './config/api';
+import { LineChart } from 'react-native-chart-kit';
+import { API_ENDPOINTS } from './config/api';
 import { apiGet, apiPost } from './services/api';
 
+// Sensor verisi arayüzü
 interface SensorValue {
-  id: number;
-  sensorId: number;
-  value: number;
-  unit: string;
-  timestamp: string;
-  type: string;
   ph_value?: number;
   nitrogen_ratio?: number;
   phosphorus_ratio?: number;
@@ -27,323 +24,282 @@ interface SensorValue {
   humidity_ratio?: number;
   soil_temperature?: number;
   electrical_conductivity?: number;
-  magnesium_ratio?: number;
-  iron_ratio?: number;
   calcium_ratio?: number;
+  magnesium_ratio?: number;
   boron_ratio?: number;
   zinc_ratio?: number;
+  iron_ratio?: number;
   sulfur_ratio?: number;
+  [key: string]: number | string | undefined;
 }
 
-export default function GridStatsWithIcons() {
+// Toprak analizi geçmişi arayüzü
+interface SoilAnalysis {
+  id: number;
+  value: number;
+  type: string;
+  timestamp: string;
+}
+
+const screenWidth = Dimensions.get('window').width;
+
+export default function DegerScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams();
-  const sensorId = params.sensorId as string;
-  if (!sensorId) {
-    console.error('Geçersiz sensorId:', sensorId);
-    return;
-  }
-  const [sensorValues, setSensorValues] = useState<SensorValue[]>([]);
+  const { sensorId, fieldId } = useLocalSearchParams<{ sensorId: string; fieldId: string }>();
+
+  const [activeTab, setActiveTab] = useState<'sensor' | 'analysis'>('sensor');
+  const [sensorValues, setSensorValues] = useState<SensorValue | null>(null);
+  const [analysisHistory, setAnalysisHistory] = useState<SoilAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSensorValues();
-  }, []);
+    if (sensorId) {
+      fetchSensorValues();
+    }
+    if (activeTab === 'analysis' && fieldId) {
+      fetchAnalysisHistory();
+    }
+  }, [sensorId, activeTab, fieldId]);
 
   const fetchSensorValues = async () => {
+    setLoading(true);
     try {
-      // Önce sensörü bağla (bağlı değilse)
       await apiPost(`/sensors/connect/${sensorId}`, {});
-      // Sonra random değerleri güncelle
       await apiPost(`/sensors/${sensorId}/update`, {});
-      // Sonra güncel veriyi çek
       const result = await apiGet<SensorValue>(`${API_ENDPOINTS.SENSORS}/${sensorId}`);
-      console.log("API'den gelen sensör verisi:", result);
-      if (result.error) {
-        throw new Error(result.error);
+      if (result.data) {
+        setSensorValues(result.data);
       }
-      setSensorValues([result.data!]);
     } catch (err) {
-      console.error('Hata:', err);
+      console.error('Sensör verisi hatası:', err);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchAnalysisHistory = async () => {
+    if (!sensorId) return;
+    try {
+      const result = await apiGet<SoilAnalysis[]>(`/sensors/${sensorId}/history`);
+      if (result.data) {
+        setAnalysisHistory(result.data);
+      }
+    } catch (err) {
+      console.error('Analiz geçmişi hatası:', err);
+    }
+  };
+
+  const handleEkinSearchPress = () => {
+    if (!sensorValues) {
+      return;
+    }
+    const params = Object.fromEntries(
+      Object.entries(sensorValues).map(([key, value]) => [key, String(value ?? '')])
+    );
+    router.push({
+      pathname: '/ekinsearch',
+      params,
+    });
+  };
+
+  const renderSensorTab = () => {
+    if (loading) return <ActivityIndicator size="large" color="#075eec" />;
+    if (!sensorValues) return <Text>Sensör verisi bulunamadı.</Text>;
+
+    const sensorMetrics = [
+      { key: 'nitrogen_ratio', label: 'Azot (N) Oranı', icon: 'wind' },
+      { key: 'phosphorus_ratio', label: 'Fosfor (P) Oranı', icon: 'droplet' },
+      { key: 'potassium_ratio', label: 'Potasyum (K) Oranı', icon: 'zap' },
+      { key: 'humidity_ratio', label: 'Nem Oranı', icon: 'umbrella' },
+      { key: 'soil_temperature', label: 'Toprak Sıcaklığı', icon: 'sun' },
+      { key: 'ph_value', label: 'pH Değeri', icon: 'thermometer' },
+      { key: 'electrical_conductivity', label: 'İletkenlik (EC)', icon: 'activity' },
+      { key: 'calcium_ratio', label: 'Kalsiyum (Ca)', icon: 'grid' },
+      { key: 'magnesium_ratio', label: 'Magnezyum (Mg)', icon: 'grid' },
+      { key: 'boron_ratio', label: 'Bor (B)', icon: 'grid' },
+      { key: 'zinc_ratio', label: 'Çinko (Zn)', icon: 'grid' },
+      { key: 'iron_ratio', label: 'Demir (Fe)', icon: 'shield' },
+      { key: 'sulfur_ratio', label: 'Kükürt (S)', icon: 'shield' },
+    ];
+
+    return (
+      <ScrollView>
+        <View style={styles.statsGrid}>
+          {sensorMetrics.map(({ key, label, icon }) => (
+            <View key={key} style={styles.statsItem}>
+              <Feather name={icon as any} size={24} color="#075eec" />
+              <Text style={styles.statsItemLabel}>{label}</Text>
+              <Text style={styles.statsItemValue}>{sensorValues[key] ?? '-'}</Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    );
+  };
+
+  const renderAnalysisTab = () => {
+    if (analysisHistory.length === 0) return <Text>Analiz geçmişi bulunamadı.</Text>;
+
+    const chartConfig = {
+      backgroundGradientFrom: '#ffffff',
+      backgroundGradientTo: '#ffffff',
+      color: (opacity = 1) => `rgba(7, 94, 236, ${opacity})`,
+      strokeWidth: 2,
+      barPercentage: 0.5,
+    };
+    
+    const chartData = (dataType: string) => {
+      const filteredData = analysisHistory.filter(a => a.type === dataType);
+      return {
+        labels: filteredData.map(a => new Date(a.timestamp).toLocaleDateString('tr-TR', { month: 'short', day: 'numeric' })),
+        datasets: [{ data: filteredData.map(a => a.value) }],
+      };
+    };
+
+    return (
+      <ScrollView>
+        <Text style={styles.chartTitle}>pH Değeri Değişimi</Text>
+        <LineChart data={chartData('ph_value')} width={screenWidth - 32} height={220} chartConfig={chartConfig} bezier />
+        
+        <Text style={styles.chartTitle}>Nem Oranı Değişimi</Text>
+        <LineChart data={chartData('humidity_ratio')} width={screenWidth - 32} height={220} chartConfig={chartConfig} bezier />
+
+        <Text style={styles.chartTitle}>Azot (N) Değişimi</Text>
+        <LineChart data={chartData('nitrogen_ratio')} width={screenWidth - 32} height={220} chartConfig={chartConfig} bezier />
+        
+        <Text style={styles.chartTitle}>Fosfor (P) Değişimi</Text>
+        <LineChart data={chartData('phosphorus_ratio')} width={screenWidth - 32} height={220} chartConfig={chartConfig} bezier />
+
+        <Text style={styles.chartTitle}>Kalsiyum (Ca) Değişimi</Text>
+        <LineChart data={chartData('calcium_ratio')} width={screenWidth - 32} height={220} chartConfig={chartConfig} bezier />
+
+        <Text style={styles.chartTitle}>Magnezyum (Mg) Değişimi</Text>
+        <LineChart data={chartData('magnesium_ratio')} width={screenWidth - 32} height={220} chartConfig={chartConfig} bezier />
+
+        <Text style={styles.chartTitle}>Çinko (Zn) Değişimi</Text>
+        <LineChart data={chartData('zinc_ratio')} width={screenWidth - 32} height={220} chartConfig={chartConfig} bezier />
+        
+        <Text style={styles.chartTitle}>Bor (B) Değişimi</Text>
+        <LineChart data={chartData('boron_ratio')} width={screenWidth - 32} height={220} chartConfig={chartConfig} bezier />
+      </ScrollView>
+    );
+  };
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#f3f3f3' }}>
-      <TouchableOpacity
-        style={{ position: 'absolute', top: 40, left: 16, zIndex: 10 }}
-        onPress={() => router.replace('/(tabs)/sensorscreen')}
-      >
-        <Feather name="arrow-left" size={28} color="#222" />
-      </TouchableOpacity>
-      <View style={styles.container}>
-        <Text style={styles.title}>Analiz </Text>
-        <ScrollView contentContainerStyle={styles.stats}>
+        <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Feather name="arrow-left" size={24} color="#333" />
+            </TouchableOpacity>
+            <Text style={styles.title}>Sensör Detayları</Text>
+            <View style={{ width: 24 }} />
+        </View>
 
-          {/* Row 1: pH ve Azot */}
-          <View style={styles.statsRow}>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="activity" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>pH{ '\n' }Değeri:</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.ph_value ?? '-'}</Text>
-              </View>
-            </View>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="activity" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Azot (N){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.nitrogen_ratio ?? '-'}</Text>
-              </View>
-            </View>
-          </View>
+        <View style={styles.tabContainer}>
+            <TouchableOpacity 
+                style={[styles.tab, activeTab === 'sensor' && styles.activeTab]}
+                onPress={() => setActiveTab('sensor')}>
+                <Text style={[styles.tabText, activeTab === 'sensor' && styles.activeTabText]}>Sensör Değerleri</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+                style={[styles.tab, activeTab === 'analysis' && styles.activeTab]}
+                onPress={() => setActiveTab('analysis')}>
+                <Text style={[styles.tabText, activeTab === 'analysis' && styles.activeTabText]}>Toprak Analizi</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+                style={styles.tab}
+                onPress={handleEkinSearchPress}>
+                <Text style={styles.tabText}>Ekin Türü Seç</Text>
+            </TouchableOpacity>
+        </View>
 
-          {/* Row 2: Fosfor ve Potasyum */}
-          <View style={styles.statsRow}>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="activity" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Fosfor (P){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.phosphorus_ratio ?? '-'}</Text>
-              </View>
-            </View>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="activity" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Potasyum (K){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.potassium_ratio ?? '-'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Row 3: Nem ve Toprak Sıcaklığı */}
-          <View style={styles.statsRow}>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="activity" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Nem{ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.humidity_ratio ?? '-'}</Text>
-              </View>
-            </View>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="sun" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Toprak{ '\n' }Sıcaklığı</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.soil_temperature ? `${sensorValues[0].soil_temperature}°C` : '-'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Row 4: Elektriksel İletkenlik ve Magnezyum (Mg) */}
-          <View style={styles.statsRow}>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="zap" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Elektriksel{ '\n' }İletkenlik (EC)</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.electrical_conductivity ?? '-'}</Text>
-              </View>
-            </View>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="activity" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Magnezyum (Mg){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.magnesium_ratio ?? '-'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Row 5: Demir (Fe) ve Kalsiyum (Ca) */}
-          <View style={styles.statsRow}>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="activity" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Demir (Fe){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.iron_ratio ?? '-'}</Text>
-              </View>
-            </View>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="activity" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Kalsiyum (Ca){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.calcium_ratio ?? '-'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Row 6: Bor (B) ve Çinko (Zn) */}
-          <View style={styles.statsRow}>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="activity" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Bor (B){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.boron_ratio ?? '-'}</Text>
-              </View>
-            </View>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="activity" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Çinko (Zn){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.zinc_ratio ?? '-'}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Row 7: Kükürt (S) */}
-          <View style={styles.statsRow}>
-            <View style={styles.statsItem}>
-              <View style={styles.statsItemIcon}>
-                <FeatherIcon color="#fff" name="activity" size={25} />
-              </View>
-              <View>
-                <Text style={styles.statsItemLabel}>Kükürt (S){ '\n' }Oranı</Text>
-                <Text style={styles.statsItemValue}>{sensorValues[0]?.sulfur_ratio ?? '-'}</Text>
-              </View>
-            </View>
-          </View>
-
-        </ScrollView>
-      </View>
-
-      
-        
-        
-
-       
-
-      {/* Alt sağ köşede FAB */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => {
-          const values = sensorValues[0];
-          router.push({
-            pathname: '/ekinsearch',
-            params: {
-              ph_value: values?.ph_value ?? '',
-              nitrogen: values?.nitrogen_ratio ?? '',
-              phosphorus: values?.phosphorus_ratio ?? '',
-              potassium: values?.potassium_ratio ?? '',
-              magnesium: values?.magnesium_ratio ?? '',
-              zinc: values?.zinc_ratio ?? '',
-              boron: values?.boron_ratio ?? '',
-              sulfur: values?.sulfur_ratio ?? '',
-              calcium: values?.calcium_ratio ?? '',
-              iron: values?.iron_ratio ?? '',
-              humidity: values?.humidity_ratio ?? '',
-              soil_temperature: values?.soil_temperature ?? '',
-              electrical_conductivity: values?.electrical_conductivity ?? '',
-            }
-          });
-        }}
-      >
-        <Text style={styles.fabText}>Ekin Türüm</Text>
-      </TouchableOpacity>
+        <View style={styles.contentContainer}>
+            {activeTab === 'sensor' ? renderSensorTab() : renderAnalysisTab()}
+        </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 24,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
   },
+  backButton: {},
   title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#4CAF50',
-    marginBottom: 12,
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#333',
   },
-  /** Stats */
-  stats: {
-    flexDirection: 'column',
-    alignItems: 'stretch',
-    justifyContent: 'center',
-  },
-  statsRow: {
+  tabContainer: {
     flexDirection: 'row',
-    marginHorizontal: -6,
-  },
-  statsItem: {
-    flexGrow: 1,
-    flexShrink: 1,
-    flexBasis: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    padding: 0,
-    borderRadius: 12,
+    justifyContent: 'space-around',
     backgroundColor: '#fff',
-    marginHorizontal: 6,
-    marginBottom: 12,
-    width: 140, // Kare için genişlik ve yükseklik eşit
-    height: 140, // Kare için yükseklik
+    paddingVertical: 8,
+    marginHorizontal: 16,
+    borderRadius: 10,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
   },
-  statsItemIcon: {
-    backgroundColor: '#4CAF50',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 46,
-    height: 46,
-    marginRight: 8,
+  tab: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: 8,
   },
-  statsItemLabel: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#8e8e93',
-    marginBottom: 2,
+  activeTab: {
+    backgroundColor: '#075eec',
   },
-  statsItemValue: {
-    fontSize: 22,
+  tabText: {
+    fontSize: 14,
+    color: '#333',
     fontWeight: '600',
-    color: '#081730',
   },
-  // FAB (Floating Action Button)
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    backgroundColor: '#4CAF50',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 30,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-  },
-  fabText: {
-    fontSize: 18,
-    lineHeight: 26,
-    fontWeight: '600',
+  activeTabText: {
     color: '#fff',
   },
-  
- 
+  contentContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  statsItem: {
+    width: '48%',
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 10,
+    marginBottom: 16,
+    alignItems: 'center',
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+  },
+  statsItemLabel: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  statsItemValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginTop: 4,
+  },
+  chartTitle: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: '#333',
+      marginTop: 24,
+      marginBottom: 8,
+      textAlign: 'center',
+  }
 });
