@@ -53,9 +53,24 @@ export default function NewsFeed() {
 
   const openNewsUrl = async (url: string) => {
     try {
+      // URL'yi kontrol et
+      if (!url || url === '#' || url === '') {
+        console.log('Geçersiz URL:', url);
+        return;
+      }
+      
+      // URL'nin geçerli olup olmadığını kontrol et
+      const supported = await Linking.canOpenURL(url);
+      if (!supported) {
+        console.log('Bu URL desteklenmiyor:', url);
+        return;
+      }
+      
       await Linking.openURL(url);
     } catch (error) {
       console.error('URL açılamadı:', error);
+      // Kullanıcıya hata mesajı göster
+      alert('Haber linki açılamadı. Lütfen daha sonra tekrar deneyin.');
     }
   };
 
